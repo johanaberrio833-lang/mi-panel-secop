@@ -26,9 +26,27 @@
             border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
         }
+        /* Estilos para los filtros */
+        .filtros {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            min-width: 250px;
+        }
         .table-container {
             overflow-x: auto;
             margin-top: 20px;
+            max-height: 600px; /* Hace que la tabla tenga scroll interno */
         }
         table {
             width: 100%;
@@ -44,9 +62,23 @@
             color: white;
             position: sticky;
             top: 0;
+            z-index: 10;
         }
         tr:hover {
             background-color: #f1f1f1;
+        }
+        .btn-enlace {
+            background-color: #2ecc71;
+            color: white;
+            padding: 6px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+            display: inline-block;
+        }
+        .btn-enlace:hover {
+            background-color: #27ae60;
         }
     </style>
 </head>
@@ -55,28 +87,37 @@
     <div class="container">
         <h1>📊 Mi Panel Automatizado SECOP II</h1>
         
+        <!-- Barra de Filtros -->
+        <div class="filtros">
+            <label for="filtro-departamento"><strong>Filtrar por Departamento:</strong></label>
+            <select id="filtro-departamento">
+                <option value="Todos">Todos los departamentos</option>
+                <!-- Las demás opciones se llenarán solas con JS -->
+            </select>
+            <span id="contador-procesos" style="margin-left: auto; font-weight: bold; color: #3498db;"></span>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>Entidad</th>
                         <th>Departamento</th>
+                        <th>Objeto del Contrato</th>
                         <th>Fase</th>
-                        <th>Modalidad</th>
                         <th>Precio Base</th>
+                        <th>Enlace</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
-                    <!-- Aquí app.js inyectará los datos automáticamente -->
                     <tr>
-                        <td colspan="5" style="text-align: center;">Cargando datos de SECOP...</td>
+                        <td colspan="6" style="text-align: center;">Cargando datos de SECOP...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Conectamos el cerebro (nuestro archivo JavaScript) -->
     <script src="app.js"></script>
 </body>
 </html>
