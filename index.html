@@ -26,7 +26,6 @@
             border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
         }
-        /* Estilos para los filtros */
         .filtros {
             background-color: #e8f4f8;
             padding: 15px;
@@ -34,19 +33,25 @@
             margin-top: 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            flex-wrap: wrap; /* Permite que se adapte en celulares */
+            gap: 15px;
+        }
+        .grupo-filtro {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         select {
             padding: 8px;
             border-radius: 4px;
             border: 1px solid #ccc;
-            font-size: 16px;
-            min-width: 250px;
+            font-size: 15px;
+            min-width: 200px;
         }
         .table-container {
             overflow-x: auto;
             margin-top: 20px;
-            max-height: 600px; /* Hace que la tabla tenga scroll interno */
+            max-height: 600px;
         }
         table {
             width: 100%;
@@ -87,13 +92,22 @@
     <div class="container">
         <h1>📊 Mi Panel Automatizado SECOP II</h1>
         
-        <!-- Barra de Filtros -->
+        <!-- Barra de Filtros Combinados -->
         <div class="filtros">
-            <label for="filtro-departamento"><strong>Filtrar por Departamento:</strong></label>
-            <select id="filtro-departamento">
-                <option value="Todos">Todos los departamentos</option>
-                <!-- Las demás opciones se llenarán solas con JS -->
-            </select>
+            <div class="grupo-filtro">
+                <label for="filtro-departamento"><strong>Departamento:</strong></label>
+                <select id="filtro-departamento">
+                    <option value="Todos">Todos</option>
+                </select>
+            </div>
+            
+            <div class="grupo-filtro">
+                <label for="filtro-modalidad"><strong>Modalidad:</strong></label>
+                <select id="filtro-modalidad">
+                    <option value="Todas">Todas</option>
+                </select>
+            </div>
+
             <span id="contador-procesos" style="margin-left: auto; font-weight: bold; color: #3498db;"></span>
         </div>
 
@@ -104,7 +118,7 @@
                         <th>Entidad</th>
                         <th>Departamento</th>
                         <th>Objeto del Contrato</th>
-                        <th>Fase</th>
+                        <th>Modalidad</th>
                         <th>Precio Base</th>
                         <th>Enlace</th>
                     </tr>
