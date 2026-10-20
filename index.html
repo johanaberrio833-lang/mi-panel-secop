@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Contratos SECOP II</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 Mi Panel Automatizado SECOP II</h1>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Entidad</th>
+                        <th>Departamento</th>
+                        <th>Fase</th>
+                        <th>Modalidad</th>
+                        <th>Precio Base</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Aquí app.js inyectará los datos automáticamente -->
+                    <tr>
+                        <td colspan="5" style="text-align: center;">Cargando datos de SECOP...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Conectamos el cerebro (nuestro archivo JavaScript) -->
+    <script src="app.js"></script>
+</body>
+</html>
