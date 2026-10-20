@@ -7,8 +7,9 @@ URL = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
 def obtener_datos():
     print("Conectando a SECOP II...")
     
-    # Consulta simplificada para evitar el Error 400 de Socrata
+    # Filtramos directamente en la URL para traer SOLO los de "Presentación de oferta"
     params = {
+        "fase": "Presentación de oferta",
         "$limit": 5000
     }
     
