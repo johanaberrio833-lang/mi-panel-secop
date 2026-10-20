@@ -5,22 +5,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const respuesta = await fetch('data/datos_hoy.json');
         datosMaestros = await respuesta.json();
         
-        // Cargar la lista de departamentos en el selector
         cargarFiltros(datosMaestros);
-        // Mostrar la tabla inicial
         actualizarTablero(datosMaestros);
         
-        // Escuchar cuando el usuario cambie el departamento
-        document.getElementById('filtro-departamento').addEventListener('change', (evento) => {
-            const depSeleccionado = evento.target.value;
-            
-            if (depSeleccionado === 'Todos') {
-                actualizarTablero(datosMaestros);
-            } else {
-                const datosFiltrados = datosMaestros.filter(proceso => proceso.departamento === depSeleccionado);
-                actualizarTablero(datosFiltrados);
-            }
-        });
+        // Escuchar los cambios en AMBOS filtros
+        document.getElementById('filtro-departamento').addEventListener('change', aplicarFiltros);
+        document.getElementById('filtro-modalidad').addEventListener('change', aplicarFiltros);
         
     } catch (error) {
         console.error("Error cargando los datos:", error);
@@ -28,20 +18,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function cargarFiltros(datos) {
+    // 1. Cargar selector de Departamentos
     const selectDep = document.getElementById('filtro-departamento');
-    // Extraer departamentos únicos, eliminar vacíos y ordenarlos alfabéticamente
     const departamentos = [...new Set(datos.map(p => p.departamento).filter(Boolean))].sort();
-    
     departamentos.forEach(dep => {
         const option = document.createElement('option');
         option.value = dep;
         option.textContent = dep;
         selectDep.appendChild(option);
     });
+
+    // 2. Cargar selector de Modalidades de Contratación
+    const selectMod = document.getElementById('filtro-modalidad');
+    const modalidades = [...new Set(datos.map(p => p.modalidad_de_contratacion).filter(Boolean))].sort();
+    modalidades.forEach(mod => {
+        const option = document.createElement('option');
+        option.value = mod;
+        option.textContent = mod;
+        selectMod.appendChild(option);
+    });
+}
+
+function aplicarFiltros() {
+    // Leemos qué seleccionó el usuario en ambos menús
+    const depSeleccionado = document.getElementById('filtro-departamento').value;
+    const modSeleccionada = document.getElementById('filtro-modalidad').value;
+    
+    // Filtramos los datos que cumplan ambas condiciones
+    const datosFiltrados = datosMaestros.filter(proceso => {
+        const cumpleDep = (depSeleccionado === 'Todos') || (proceso.departamento === depSeleccionado);
+        const cumpleMod = (modSeleccionada === 'Todas') || (proceso.modalidad_de_contratacion === modSeleccionada);
+        return cumpleDep && cumpleMod;
+    });
+    
+    actualizarTablero(datosFiltrados);
 }
 
 function actualizarTablero(datos) {
-    // Actualizar el contador
     document.getElementById('contador-procesos').textContent = `Mostrando ${datos.length} procesos`;
     renderizarTabla(datos);
 }
@@ -52,21 +65,19 @@ function renderizarTabla(datos) {
     
     tbody.innerHTML = ''; 
     
-    // Mostramos los primeros 150 para que el navegador no se ponga lento
     const datosMostrar = datos.slice(0, 150);
     
     if(datosMostrar.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay procesos para este filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No hay procesos que coincidan con estos filtros.</td></tr>';
         return;
     }
 
     datosMostrar.forEach(proceso => {
         const tr = document.createElement('tr');
         
-        // Extraer el objeto (Socrata usa "descripci_n_del_procedimiento")
         const objeto = proceso.descripci_n_del_procedimiento || 'Sin descripción detallada';
+        const modalidad = proceso.modalidad_de_contratacion || 'N/A';
         
-        // Extraer el enlace (Socrata lo envía como un objeto con una propiedad "url")
         let urlSocrata = "#";
         if (typeof proceso.urlproceso === 'string') {
             urlSocrata = proceso.urlproceso;
@@ -78,14 +89,13 @@ function renderizarTabla(datos) {
             ? `<a href="${urlSocrata}" target="_blank" class="btn-enlace">Ir a SECOP</a>` 
             : 'N/A';
         
-        // Formatear precio
         const precio = proceso.precio_base ? Number(proceso.precio_base).toLocaleString('es-CO') : '0';
 
         tr.innerHTML = `
             <td><strong>${proceso.entidad || 'N/A'}</strong></td>
             <td>${proceso.departamento || 'N/A'}</td>
             <td><div style="max-width: 400px; max-height: 100px; overflow-y: auto; font-size: 0.9em; line-height: 1.4;">${objeto}</div></td>
-            <td>${proceso.fase || 'N/A'}</td>
+            <td>${modalidad}</td>
             <td>$ ${precio}</td>
             <td style="text-align: center;">${botonEnlace}</td>
         `;
