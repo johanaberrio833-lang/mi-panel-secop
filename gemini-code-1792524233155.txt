@@ -1,0 +1,16 @@
+/mi-panel-secop
+│
+├── .github/
+│   └── workflows/
+│       └── actualizador.yml    # El "reloj" que ejecuta la tarea diaria
+│
+├── scripts/
+│   └── descargar_datos.py      # El motor lógico que se conecta a SECOP
+│
+├── data/
+│   └── datos_hoy.json          # Archivo generado automáticamente (no lo creas a mano)
+│
+├── requirements.txt            # Dependencias de Python
+├── index.html                  # Tu maquetación web actual
+├── style.css                   # Estilos visuales
+└── app.js                      # La lógica del tablero (filtros y gráficos)
