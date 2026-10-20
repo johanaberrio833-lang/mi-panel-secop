@@ -9,8 +9,8 @@ def obtener_datos():
     
     # Filtramos directamente en la URL para traer SOLO los de "Presentación de oferta"
     params = {
-        "fase": "Presentación de oferta",
-        "$limit": 5000
+        "$order": "fecha_de_publicacion_del DESC",
+        "$limit": 10000
     }
     
     response = requests.get(URL, params=params)
