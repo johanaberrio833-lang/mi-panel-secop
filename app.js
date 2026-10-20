@@ -1,18 +1,21 @@
 let datosMaestros = [];
 let miGrafico = null;
 
-// Función para extraer de forma segura los valores reales de SECOP (sin importar si cambian de nombre)
-const obtenerValor = (obj, clavesPosibles, valorPorDefecto = 'No definido') => {
-    for (let clave of clavesPosibles) {
-        if (obj[clave] && obj[clave] !== 'No definido') return obj[clave];
+// Función "Inteligente" que busca la columna sin importar cómo SECOP le cambie el nombre
+const buscarDato = (proceso, palabrasClave, valorPorDefecto = 'No definido') => {
+    const claves = Object.keys(proceso);
+    for (let palabra of palabrasClave) {
+        const claveEncontrada = claves.find(k => k.toLowerCase().includes(palabra));
+        if (claveEncontrada && proceso[claveEncontrada]) {
+            return proceso[claveEncontrada];
+        }
     }
     return valorPorDefecto;
 };
 
-// Limpiar la fecha para que se vea corta (quitando la 'T' y la hora)
 const formatoFecha = (cadena) => {
     if (!cadena || cadena === 'No definido') return 'Sin fecha';
-    return cadena.split('T')[0];
+    return String(cadena).split('T')[0];
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,25 +26,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         cargarFiltros(datosMaestros);
         actualizarTablero(datosMaestros);
         
-        // Activar los filtros cuando el usuario hace clic
         document.getElementById('filtro-departamento').addEventListener('change', aplicarFiltros);
         document.getElementById('filtro-modalidad').addEventListener('change', aplicarFiltros);
         
     } catch (error) {
         console.error("Error cargando los datos:", error);
-        document.getElementById('table-body').innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">Error al cargar los datos.</td></tr>';
+        document.getElementById('table-body').innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">Error al cargar los datos de SECOP.</td></tr>';
     }
 });
 
 function cargarFiltros(datos) {
     const selectDep = document.getElementById('filtro-departamento');
-    selectDep.innerHTML = '<option value="Todos">Todos</option>'; // Reiniciar el filtro
-    const departamentos = [...new Set(datos.map(p => obtenerValor(p, ['departamento_entidad', 'departamento'])))].filter(d => d !== 'No definido').sort();
+    selectDep.innerHTML = '<option value="Todos">Todos</option>';
+    const departamentos = [...new Set(datos.map(p => buscarDato(p, ['departamento'])))].filter(d => d !== 'No definido').sort();
     departamentos.forEach(dep => selectDep.appendChild(new Option(dep, dep)));
 
     const selectMod = document.getElementById('filtro-modalidad');
-    selectMod.innerHTML = '<option value="Todas">Todas</option>'; // Reiniciar el filtro
-    const modalidades = [...new Set(datos.map(p => obtenerValor(p, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n'])))].filter(m => m !== 'No definido').sort();
+    selectMod.innerHTML = '<option value="Todas">Todas</option>';
+    const modalidades = [...new Set(datos.map(p => buscarDato(p, ['modalidad', 'proceso'])))].filter(m => m !== 'No definido').sort();
     modalidades.forEach(mod => selectMod.appendChild(new Option(mod, mod)));
 }
 
@@ -50,8 +52,8 @@ function aplicarFiltros() {
     const modSeleccionada = document.getElementById('filtro-modalidad').value;
     
     const datosFiltrados = datosMaestros.filter(proceso => {
-        const depReal = obtenerValor(proceso, ['departamento_entidad', 'departamento']);
-        const modReal = obtenerValor(proceso, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
+        const depReal = buscarDato(proceso, ['departamento']);
+        const modReal = buscarDato(proceso, ['modalidad', 'proceso']);
         
         const cumpleDep = (depSeleccionado === 'Todos') || (depReal === depSeleccionado);
         const cumpleMod = (modSeleccionada === 'Todas') || (modReal === modSeleccionada);
@@ -62,29 +64,82 @@ function aplicarFiltros() {
 }
 
 function actualizarTablero(datos) {
-    renderizarKPIs(datos);
-    renderizarGrafico(datos);
-    renderizarTabla(datos);
+    // Dividimos en bloques seguros para que si algo falla, no bloquee lo demás
+    try { renderizarKPIs(datos); } catch(e) { console.error(e); }
+    try { renderizarTabla(datos); } catch(e) { console.error(e); }
+    try { renderizarGrafico(datos); } catch(e) { console.error(e); }
 }
 
 function renderizarKPIs(datos) {
-    // Actualizar la tarjeta de cantidad
     document.getElementById('kpi-total').textContent = datos.length;
-    
-    // Actualizar la tarjeta de dinero
-    const valorTotal = datos.reduce((suma, proceso) => suma + (Number(proceso.precio_base) || 0), 0);
+    const valorTotal = datos.reduce((suma, proceso) => suma + (Number(buscarDato(proceso, ['precio', 'cuantia', 'valor'], 0)) || 0), 0);
     document.getElementById('kpi-valor').textContent = `$ ${valorTotal.toLocaleString('es-CO')}`;
+}
+
+function renderizarTabla(datos) {
+    const tbody = document.getElementById('table-body'); 
+    if (!tbody) return;
+    tbody.innerHTML = ''; 
+    
+    const datosMostrar = datos.slice(0, 150); // Muestra los primeros 150 para rapidez visual
+    
+    if(datosMostrar.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay procesos de oferta para estos filtros.</td></tr>';
+        return;
+    }
+
+    datosMostrar.forEach(proceso => {
+        const tr = document.createElement('tr');
+        
+        const entidad = buscarDato(proceso, ['entidad', 'nombre']);
+        const departamento = buscarDato(proceso, ['departamento']);
+        const modalidad = buscarDato(proceso, ['modalidad', 'proceso']);
+        const objeto = buscarDato(proceso, ['descripci', 'objeto', 'detalle'], 'Sin descripción');
+        
+        const fechaPub = formatoFecha(buscarDato(proceso, ['publicacion', 'publicaci']));
+        const fechaInicio = formatoFecha(buscarDato(proceso, ['recepcion', 'inicio']));
+        const fechaCierre = formatoFecha(buscarDato(proceso, ['cierre', 'fin']));
+        
+        const bloqueFechas = `
+            <div style="font-size: 12px; line-height: 1.5; white-space: nowrap;">
+                <strong>Pub:</strong> ${fechaPub}<br>
+                <strong>Inicio:</strong> ${fechaInicio}<br>
+                <strong>Cierre:</strong> <span style="color:#e74c3c; font-weight:bold;">${fechaCierre}</span>
+            </div>
+        `;
+
+        let urlSocrata = "#";
+        if (proceso.urlproceso && typeof proceso.urlproceso === 'string') urlSocrata = proceso.urlproceso;
+        else if (proceso.urlproceso && proceso.urlproceso.url) urlSocrata = proceso.urlproceso.url;
+        
+        const botonEnlace = urlSocrata !== "#" ? `<a href="${urlSocrata}" target="_blank" style="background-color: #2ecc71; color: white; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; white-space: nowrap;">Ir a SECOP</a>` : 'Sin Enlace';
+        
+        const precio = Number(buscarDato(proceso, ['precio', 'cuantia', 'valor'], 0));
+        const precioTexto = precio > 0 ? `$ ${precio.toLocaleString('es-CO')}` : 'Por definir';
+
+        tr.innerHTML = `
+            <td><strong>${entidad}</strong></td>
+            <td>${departamento}</td>
+            <td><div style="max-width: 350px; max-height: 80px; overflow-y: auto; font-size: 0.9em; line-height: 1.4;">${objeto}</div></td>
+            <td>${modalidad}</td>
+            <td>${bloqueFechas}</td>
+            <td>${precioTexto}</td>
+            <td style="text-align: center;">${botonEnlace}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 function renderizarGrafico(datos) {
     const canvas = document.getElementById('graficoModalidad');
-    if (!canvas) return;
+    // Verificamos que Chart.js se haya cargado correctamente para no arrojar errores
+    if (!canvas || typeof Chart === 'undefined') return; 
     
     const ctx = canvas.getContext('2d');
     const conteo = {};
     
     datos.forEach(p => {
-        const mod = obtenerValor(p, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
+        const mod = buscarDato(p, ['modalidad', 'proceso']);
         conteo[mod] = (conteo[mod] || 0) + 1;
     });
 
@@ -95,67 +150,12 @@ function renderizarGrafico(datos) {
         data: {
             labels: Object.keys(conteo),
             datasets: [{
-                label: 'Contratos en Oferta',
+                label: 'Contratos',
                 data: Object.values(conteo),
                 backgroundColor: '#3498db',
                 borderRadius: 4
             }]
         },
         options: { responsive: true, plugins: { legend: { display: false } } }
-    });
-}
-
-function renderizarTabla(datos) {
-    const tbody = document.getElementById('table-body'); 
-    if (!tbody) return;
-    tbody.innerHTML = ''; 
-    
-    const datosMostrar = datos.slice(0, 150); // Mostrar máximo 150 para que el navegador no colapse
-    
-    if(datosMostrar.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No hay procesos de oferta para estos filtros.</td></tr>';
-        return;
-    }
-
-    datosMostrar.forEach(proceso => {
-        const tr = document.createElement('tr');
-        
-        const entidad = obtenerValor(proceso, ['entidad']);
-        const departamento = obtenerValor(proceso, ['departamento_entidad', 'departamento']);
-        const modalidad = obtenerValor(proceso, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
-        const objeto = obtenerValor(proceso, ['descripci_n_del_procedimiento', 'descripcion_del_procedimiento'], 'Sin descripción');
-        
-        // Fechas
-        const fechaPub = formatoFecha(obtenerValor(proceso, ['fecha_de_publicacion_del']));
-        const fechaInicio = formatoFecha(obtenerValor(proceso, ['fecha_de_recepcion_de', 'fecha_inicio_presentacion']));
-        const fechaCierre = formatoFecha(obtenerValor(proceso, ['fecha_de_cierre', 'fecha_fin_presentacion']));
-        
-        const bloqueFechas = `
-            <div style="font-size: 12px; line-height: 1.5; white-space: nowrap;">
-                <strong>Pub:</strong> ${fechaPub}<br>
-                <strong>Inicio:</strong> ${fechaInicio}<br>
-                <strong>Cierre:</strong> <span style="color:#e74c3c;">${fechaCierre}</span>
-            </div>
-        `;
-
-        // Enlace
-        let urlSocrata = "#";
-        if (typeof proceso.urlproceso === 'string') urlSocrata = proceso.urlproceso;
-        else if (proceso.urlproceso && proceso.urlproceso.url) urlSocrata = proceso.urlproceso.url;
-        
-        const botonEnlace = urlSocrata !== "#" ? `<a href="${urlSocrata}" target="_blank" style="background-color: #2ecc71; color: white; padding: 6px 10px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 13px; display: inline-block; white-space: nowrap;">Ir a SECOP</a>` : 'N/A';
-        
-        const precio = proceso.precio_base ? Number(proceso.precio_base).toLocaleString('es-CO') : '0';
-
-        tr.innerHTML = `
-            <td><strong>${entidad}</strong></td>
-            <td>${departamento}</td>
-            <td><div style="max-width: 350px; max-height: 80px; overflow-y: auto; font-size: 0.9em; line-height: 1.4;">${objeto}</div></td>
-            <td>${modalidad}</td>
-            <td>${bloqueFechas}</td>
-            <td>$ ${precio}</td>
-            <td style="text-align: center;">${botonEnlace}</td>
-        `;
-        tbody.appendChild(tr);
     });
 }
