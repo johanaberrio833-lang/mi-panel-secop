@@ -1,12 +1,11 @@
 let datosMaestros = [];
 let miGrafico = null;
 
-const buscarDato = (proceso, palabrasClave, valorPorDefecto = 'No definido') => {
-    const claves = Object.keys(proceso);
-    for (let palabra of palabrasClave) {
-        const claveEncontrada = claves.find(k => k.toLowerCase().includes(palabra));
-        if (claveEncontrada && proceso[claveEncontrada] && proceso[claveEncontrada] !== 'No definido') {
-            return proceso[claveEncontrada];
+// Búsqueda ESTRICTA: Solo lee la columna de SECOP si el nombre es exacto.
+const obtenerValorExacto = (proceso, clavesPosibles, valorPorDefecto = 'No definido') => {
+    for (let clave of clavesPosibles) {
+        if (proceso[clave] !== undefined && proceso[clave] !== null && proceso[clave] !== 'No definido') {
+            return proceso[clave];
         }
     }
     return valorPorDefecto;
@@ -21,13 +20,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const respuesta = await fetch('data/datos_hoy.json');
         datosMaestros = await respuesta.json(); 
-        // Eliminamos el bloque que borraba los procesos cerrados. ¡Ahora queremos hacerles seguimiento a todos!
         
         cargarFiltros(datosMaestros);
         actualizarTablero(datosMaestros);
         
-        // Activamos los 3 filtros
         document.getElementById('filtro-departamento').addEventListener('change', aplicarFiltros);
+        document.getElementById('filtro-municipio').addEventListener('change', aplicarFiltros);
         document.getElementById('filtro-modalidad').addEventListener('change', aplicarFiltros);
         document.getElementById('filtro-estado').addEventListener('change', aplicarFiltros);
         
@@ -39,36 +37,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 function cargarFiltros(datos) {
     const selectDep = document.getElementById('filtro-departamento');
     selectDep.innerHTML = '<option value="Todos">Todos</option>';
-    const departamentos = [...new Set(datos.map(p => buscarDato(p, ['departamento'])))].filter(d => d !== 'No definido').sort();
+    const departamentos = [...new Set(datos.map(p => obtenerValorExacto(p, ['departamento_entidad', 'departamento'])))].filter(d => d !== 'No definido').sort();
     departamentos.forEach(dep => selectDep.appendChild(new Option(dep, dep)));
+
+    const selectMun = document.getElementById('filtro-municipio');
+    selectMun.innerHTML = '<option value="Todos">Todos</option>';
+    const municipios = [...new Set(datos.map(p => obtenerValorExacto(p, ['ciudad_entidad', 'ciudad', 'municipio_entidad'])))].filter(m => m !== 'No definido').sort();
+    municipios.forEach(mun => selectMun.appendChild(new Option(mun, mun)));
 
     const selectMod = document.getElementById('filtro-modalidad');
     selectMod.innerHTML = '<option value="Todas">Todas</option>';
-    const modalidades = [...new Set(datos.map(p => buscarDato(p, ['modalidad', 'proceso'])))].filter(m => m !== 'No definido').sort();
+    const modalidades = [...new Set(datos.map(p => obtenerValorExacto(p, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n'])))].filter(m => m !== 'No definido').sort();
     modalidades.forEach(mod => selectMod.appendChild(new Option(mod, mod)));
 
-    // Cargar el nuevo selector de Estados
+    // Extrae exactamente el estado real del proceso en SECOP
     const selectEst = document.getElementById('filtro-estado');
     selectEst.innerHTML = '<option value="Todos">Todos</option>';
-    const estados = [...new Set(datos.map(p => buscarDato(p, ['estado', 'fase'])))].filter(e => e !== 'No definido').sort();
+    const estados = [...new Set(datos.map(p => obtenerValorExacto(p, ['estado_del_procedimiento', 'estado_resumen'])))].filter(e => e !== 'No definido').sort();
     estados.forEach(est => selectEst.appendChild(new Option(est, est)));
 }
 
 function aplicarFiltros() {
     const depSeleccionado = document.getElementById('filtro-departamento').value;
+    const munSeleccionado = document.getElementById('filtro-municipio').value;
     const modSeleccionada = document.getElementById('filtro-modalidad').value;
-    const estSeleccionado = document.getElementById('filtro-estado').value; // Leer el estado
+    const estSeleccionado = document.getElementById('filtro-estado').value; 
     
     const datosFiltrados = datosMaestros.filter(proceso => {
-        const depReal = buscarDato(proceso, ['departamento']);
-        const modReal = buscarDato(proceso, ['modalidad', 'proceso']);
-        const estReal = buscarDato(proceso, ['estado', 'fase']);
+        const depReal = obtenerValorExacto(proceso, ['departamento_entidad', 'departamento']);
+        const munReal = obtenerValorExacto(proceso, ['ciudad_entidad', 'ciudad', 'municipio_entidad']);
+        const modReal = obtenerValorExacto(proceso, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
+        const estReal = obtenerValorExacto(proceso, ['estado_del_procedimiento', 'estado_resumen']);
         
         const cumpleDep = (depSeleccionado === 'Todos') || (depReal === depSeleccionado);
+        const cumpleMun = (munSeleccionado === 'Todos') || (munReal === munSeleccionado);
         const cumpleMod = (modSeleccionada === 'Todas') || (modReal === modSeleccionada);
         const cumpleEst = (estSeleccionado === 'Todos') || (estReal === estSeleccionado);
         
-        return cumpleDep && cumpleMod && cumpleEst;
+        return cumpleDep && cumpleMun && cumpleMod && cumpleEst;
     });
     
     actualizarTablero(datosFiltrados);
@@ -82,7 +88,7 @@ function actualizarTablero(datos) {
 
 function renderizarKPIs(datos) {
     document.getElementById('kpi-total').textContent = datos.length;
-    const valorTotal = datos.reduce((suma, proceso) => suma + (Number(buscarDato(proceso, ['precio', 'cuantia', 'valor'], 0)) || 0), 0);
+    const valorTotal = datos.reduce((suma, proceso) => suma + (Number(obtenerValorExacto(proceso, ['precio_base', 'cuantia_proceso'], 0)) || 0), 0);
     document.getElementById('kpi-valor').textContent = `$ ${valorTotal.toLocaleString('es-CO')}`;
 }
 
@@ -94,21 +100,22 @@ function renderizarTabla(datos) {
     const datosMostrar = datos.slice(0, 150); 
     
     if(datosMostrar.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No hay procesos vigentes para estos filtros.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">No hay procesos para estos filtros.</td></tr>';
         return;
     }
 
     datosMostrar.forEach(proceso => {
         const tr = document.createElement('tr');
         
-        const entidad = buscarDato(proceso, ['entidad', 'nombre']);
-        const departamento = buscarDato(proceso, ['departamento']);
-        const modalidad = buscarDato(proceso, ['modalidad', 'proceso']);
-        const estado = buscarDato(proceso, ['estado', 'fase']);
-        const objeto = buscarDato(proceso, ['descripci', 'objeto', 'detalle'], 'Sin descripción');
+        const entidad = obtenerValorExacto(proceso, ['entidad', 'nombre_entidad']);
+        const departamento = obtenerValorExacto(proceso, ['departamento_entidad', 'departamento']);
+        const municipio = obtenerValorExacto(proceso, ['ciudad_entidad', 'ciudad', 'municipio_entidad']);
+        const modalidad = obtenerValorExacto(proceso, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
+        const estado = obtenerValorExacto(proceso, ['estado_del_procedimiento', 'estado_resumen']);
+        const objeto = obtenerValorExacto(proceso, ['descripci_n_del_procedimiento', 'descripcion_del_procedimiento'], 'Sin descripción');
         
-        const fechaPub = formatoFecha(buscarDato(proceso, ['publicacion', 'publicaci']));
-        const fechaCierre = formatoFecha(buscarDato(proceso, ['cierre', 'fin']));
+        const fechaPub = formatoFecha(obtenerValorExacto(proceso, ['fecha_de_publicacion_del']));
+        const fechaCierre = formatoFecha(obtenerValorExacto(proceso, ['fecha_de_cierre', 'fecha_fin_presentacion']));
         
         const bloqueFechas = `
             <div style="font-size: 11px; line-height: 1.5; white-space: nowrap;">
@@ -123,25 +130,26 @@ function renderizarTabla(datos) {
         
         const botonEnlace = urlSocrata !== "#" ? `<a href="${urlSocrata}" target="_blank" class="btn-enlace">Ir a SECOP</a>` : 'Sin Enlace';
         
-        const precio = Number(buscarDato(proceso, ['precio', 'cuantia', 'valor'], 0));
+        const precio = Number(obtenerValorExacto(proceso, ['precio_base', 'cuantia_proceso'], 0));
         const precioTexto = precio > 0 ? `$ ${precio.toLocaleString('es-CO')}` : 'Por definir';
 
-        // Determinar el color de la etiqueta de Estado
-        let colorEstado = "#bdc3c7"; // Gris por defecto
-        if(estado.toLowerCase().includes('oferta') || estado.toLowerCase().includes('borrador')) colorEstado = "#3498db"; // Azul
-        if(estado.toLowerCase().includes('evaluaci')) colorEstado = "#f1c40f"; // Amarillo
-        if(estado.toLowerCase().includes('adjudicado') || estado.toLowerCase().includes('celebrado')) colorEstado = "#2ecc71"; // Verde
+        let colorEstado = "#bdc3c7"; 
+        if(estado.toLowerCase().includes('oferta') || estado.toLowerCase().includes('publicado')) colorEstado = "#3498db"; 
+        if(estado.toLowerCase().includes('evaluaci') || estado.toLowerCase().includes('observacion')) colorEstado = "#f1c40f"; 
+        if(estado.toLowerCase().includes('adjudicado') || estado.toLowerCase().includes('celebrado')) colorEstado = "#2ecc71"; 
 
-        const etiquetaEstado = `<span style="background-color: ${colorEstado}; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold;">${estado}</span>`;
+        const etiquetaEstado = `<span style="background-color: ${colorEstado}; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-align: center; display: inline-block;">${estado}</span>`;
 
+        // Exactamente 9 celdas para que no haya cruce de información
         tr.innerHTML = `
             <td><strong>${entidad}</strong></td>
             <td>${departamento}</td>
-            <td><div style="max-width: 300px; max-height: 80px; overflow-y: auto; font-size: 0.85em; line-height: 1.4;">${objeto}</div></td>
+            <td>${municipio}</td>
+            <td><div style="max-width: 250px; max-height: 80px; overflow-y: auto; font-size: 0.85em; line-height: 1.4;">${objeto}</div></td>
             <td>${modalidad}</td>
             <td style="text-align: center;">${etiquetaEstado}</td>
             <td>${bloqueFechas}</td>
-            <td>${precioTexto}</td>
+            <td style="white-space: nowrap;">${precioTexto}</td>
             <td style="text-align: center;">${botonEnlace}</td>
         `;
         tbody.appendChild(tr);
@@ -156,7 +164,7 @@ function renderizarGrafico(datos) {
     const conteo = {};
     
     datos.forEach(p => {
-        const mod = buscarDato(p, ['modalidad', 'proceso']);
+        const mod = obtenerValorExacto(p, ['modalidad_de_contratacion', 'modalidad_de_contrataci_n']);
         conteo[mod] = (conteo[mod] || 0) + 1;
     });
 
