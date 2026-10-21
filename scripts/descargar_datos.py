@@ -5,9 +5,9 @@ import os
 URL = "https://www.datos.gov.co/resource/p6dx-8zbt.json"
 
 def obtener_datos():
-    print("Conectando a SECOP II (2026-2027)...")
+    print("Conectando a SECOP II (Procesos 2026-2027)...")
     
-    # Filtro estricto: Solo procesos de 2026 y 2027, y traemos 10,000 registros
+    # Exigimos procesos publicados a partir de 2026, limitando a los 10,000 más recientes
     params = {
         "$where": "fecha_de_publicacion_del >= '2026-01-01T00:00:00.000'",
         "$order": "fecha_de_publicacion_del DESC",
@@ -24,10 +24,9 @@ def obtener_datos():
         os.makedirs('data', exist_ok=True)
         ruta_archivo = 'data/datos_hoy.json'
         df.to_json(ruta_archivo, orient='records', force_ascii=False)
-        print(f"Éxito: {len(df)} registros vigentes guardados en {ruta_archivo}")
+        print(f"Éxito: {len(df)} registros vigentes guardados.")
     else:
-        print(f"Error {response.status_code}: {response.text}")
-        raise Exception("La API de SECOP falló.")
+        raise Exception(f"Error {response.status_code}: {response.text}")
 
 if __name__ == "__main__":
     obtener_datos()
